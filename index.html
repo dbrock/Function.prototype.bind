@@ -1,68 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!doctype html>
+<html>
   <head>
-    <title>Object-Oriented Event Listening through Partial Application
-    in JavaScript</title>
-    <style type="text/css">
-      body              { margin:            0; }
-      .es5              { border-bottom:     1px solid #ccc;
-                          padding:           10px 12px 8px; }
-      .es5 strong       { margin-right:      .2em; }
-      .container        { font:              18px/1.5 Georgia;
-                          margin:            4em auto;
-                          width:             800px; }
-      h1, h2, .es5      { font-family:       "Myriad Pro", Helvetica; }
-      h1                { text-align:        center; }
-      address           { text-align:        center;
-                          font-size:         larger;
-                          font-style:        normal;
-                          margin:            2ex 0; }
-      address.author    { margin-top:        4ex; }
-      address.published { margin-top:        4ex; }
-      address.revised   { font-size:         medium;
-                          font-style:        italic; }
-      .abstract         { width:             80%;
-                          margin:            1.5cm auto; }
-      .abstract p       { text-align:        justify; }
-      .abstract h2      { text-align:        center;
-                          margin-left:       0; }
-      .toc              { display:none }
-      .toc h2           {  }
-      .toc dl           { margin:            0; }
-      h2                { margin-left:       -1cm; }
-      .details          { margin:            4ex 4em;
-                          padding:           1ex 4ex;
-                          font-size:         smaller;
-                          background:        #f8f8f8; }
-      samp              { quotes:            '“' '”'; }
-      samp:before       { content:           open-quote; }
-      samp:after        { content:           close-quote; }
-      ins               { text-decoration:   none;
-                          font-weight:       bold; }
-      del               { text-decoration:   line-through;
-                          font-style:        italic; }
-      acronym           { text-transform:    lowercase;
-                          font-variant:      small-caps; }
-      samp              { font-family:       sans-serif; }
-      pre               { margin-left:       3em; }
-      dt                { font-weight:       bold; }
-    </style>
+    <meta charset="utf-8">
+    <title>Object-Oriented Event Listening through Partial Application in JavaScript</title>
+    <meta name="description" content="A general solution to the simple but common problem of attaching event listeners to HTML elements owned by object-oriented code is presented.">
+    <link href="style.css" rel="stylesheet">
   </head>
   <body>
     <div class="es5">
-      <strong>Note:</strong> Function.prototype.bind is now standardized—see <a href="http://es5.github.com/#x15.3.4.5">ECMAScript 5, section 15.3.4.5</a>.
+      <strong>Note:</strong> Function.prototype.bind is now standardized! See <a href="http://es5.github.com/#x15.3.4.5">ECMAScript 5, §15.3.4.5</a>.
     </div>
     <div class="container">
-      <h1>Object-Oriented Event Listening through Partial Application in
-      JavaScript</h1>
+      <h1>Object-Oriented Event Listening through Partial Application in JavaScript</h1>
 
-      <address class="author">Daniel Brockman</address>
-      <address><code>daniel@brockman.se</code></address>
-      <address class="published">July 23, 2004</address>
-      <address class="revised">Revised January 9, 2012</address>
+      <address>
+        <div>Daniel Brockman</div>
+        <div><code>daniel@brockman.se</code></div>
+        <div>July 23, 2004</div>
+      </address>
 
       <div class="abstract">
         <h2>Abstract</h2>

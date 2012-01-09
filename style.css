@@ -1,0 +1,36 @@
+body              { margin:            0; }
+.es5              { border-bottom:     1px solid #ccc;
+                    padding:           10px 12px 8px; }
+.es5 strong       { margin-right:      .2em; }
+.container        { font:              18px/1.5 Georgia;
+                    margin:            4em auto;
+                    width:             800px; }
+h1, h2, .es5      { font-family:       "Myriad Pro", Helvetica; }
+h1                { text-align:        center; }
+address           { text-align:        center;
+                    font-size:         larger;
+                    font-style:        normal;
+                    margin-top:        4ex; }
+address div       { margin-top:        2ex; }
+.abstract         { width:             80%;
+                    margin:            1.5cm auto; }
+.abstract p       { text-align:        justify; }
+.abstract h2      { text-align:        center;
+                    margin-left:       0; }
+h2                { margin:            1.5em 0 .5em -1cm; }
+.details          { margin:            4ex 4em;
+                    padding:           1ex 4ex;
+                    font-size:         smaller;
+                    background:        #f8f8f8; }
+samp              { quotes:            '“' '”'; }
+samp:before       { content:           open-quote; }
+samp:after        { content:           close-quote; }
+ins               { text-decoration:   none;
+                    font-weight:       bold; }
+del               { text-decoration:   line-through;
+                    font-style:        italic; }
+acronym           { text-transform:    lowercase;
+                    font-variant:      small-caps; }
+samp              { font-family:       sans-serif; }
+pre               { margin-left:       3em; }
+dt                { font-weight:       bold; }
