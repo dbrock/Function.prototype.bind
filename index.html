@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Object-Oriented Event Listening through Partial Application
+    in JavaScript</title>
+    <style type="text/css">
+      body              { font:              18px/1.5 Georgia;
+                          margin:            4em auto;
+                          width:             800px; }
+      h1, h2            { font-family:       "Myriad Pro", Georgia; }
+      h1                { text-align:        center; }
+      address           { text-align:        center;
+                          font-size:         larger;
+                          font-style:        normal;
+                          margin:            2ex 0; }
+      address.author    { margin-top:        4ex; }
+      address.published { margin-top:        4ex; }
+      address.revised   { font-size:         medium;
+                          font-style:        italic; }
+      .abstract         { width:             80%;
+                          margin:            1.5cm auto; }
+      .abstract p       { text-align:        justify; }
+      .abstract h2      { text-align:        center;
+                          margin-left:       0; }
+      .toc              { display:none }
+      .toc h2           {  }
+      .toc dl           { margin:            0; }
+      h2                { margin-left:       -1cm; }
+      .details          { margin:            4ex 4em;
+                          padding:           1ex 1em;
+                          border:            1px solid #ccc;
+                          font-size:         smaller;
+                          background:        #eee; }
+      samp              { quotes:            '“' '”'; }
+      samp:before       { content:           open-quote; }
+      samp:after        { content:           close-quote; }
+      ins               { text-decoration:   none;
+                          font-weight:       bold; }
+      del               { text-decoration:   line-through;
+                          font-style:        italic; }
+      acronym           { text-transform:    lowercase;
+                          font-variant:      small-caps; }
+      samp              { font-family:       sans-serif; }
+      pre               { margin-left:       3em; }
+      dt                { font-weight:       bold; }
+    </style>
+  </head>
+  <body>
+    <h1>Object-Oriented Event Listening through Partial Application in
+    JavaScript</h1>
+
+    <address class="author">Daniel Brockman</address>
+    <address><code>daniel@brockman.se</code></address>
+    <address class="published">July 23, 2004</address>
+    <address class="revised">Revised April 29, 2008</address>
+
+    <div class="abstract">
+      <h2>Abstract</h2>
+
+      <p>A general solution to the simple but common problem of attaching
+      event listeners to <acronym>HTML</acronym> elements owned by
+      object-oriented code is presented.  The solution does not rely on
+      the questionable method of injecting hidden backreferences to the
+      application logic into the <acronym>HTML</acronym> elements; rather,
+      the listeners are connected to the application logic in a purely
+      hygeinic fashion through the use of lexical closures.</p>
+    </div>
+
+    <h2>Method references</h2>
+
+    <p>The following code does not do what the programmer intended it to:</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+    this.element.onclick = this.greet;
+}
+
+GreetingButton.prototype.greet = function () {
+    alert(this.greeting);
+};
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <p>Upon loading the document, the expression <code>gb.greet()</code> will be
+    evaluated, which will produce the greeting <samp>Hello!</samp>.  However,
+    upon clicking the button labelled <samp>Receive Greeting</samp>, the
+    string <samp>undefined</samp> will appear instead of <samp>Hello!</samp>.
+    The reason is that in the latter case, <code>this</code> in the expression
+    <code>alert(this.greeting)</code> will refer to the <acronym>HTML</acronym>
+    button that was clicked—not, as in the former case, <code>gb</code>, the
+    <code>GreetingButton</code> object.</p>
+
+    <div class="details">
+      <p>When we say <code>gb.greet</code>, we get the exact same function
+      object as we get by saying <code>GreetingButton.prototype.greet</code>—a
+      function object that obviously has no way of knowing that, in this case,
+      we would like to think of it as a method of the object <code>gb</code>.
+      In JavaScript, the exact same function object may act as a method for any
+      number of different objects: the relevant object is supplied by the caller
+      in each case and bound to the special variable <code>this</code>.</p>
+
+      <p>Consider what would happen if we created another greeting button—let's
+      call it <code>foo</code>.  Using <code>foo</code>, we would have another
+      way of referring to the same old function object: <code>foo.greet</code>.
+      The expressions <code>gb.greet</code> and <code>foo.greet</code> would be
+      entirely equivalent.</p>
+
+      <p>With this background, one immediately realizes that the line
+      <code>this.onclick = this.greet</code> cannot do the right thing,
+      because it is equivalent to <code>this.onclick = foo.greet</code>.
+
+      <p>Let me remark also that although the expressions <code>gb.greet</code>
+      and <code>foo.greet</code> are equivalent, the similar expressions
+      <code>gb.greet()</code> and <code>foo.greet()</code> are not.</p>
+    </div>
+
+    <p>To side-step the problem, you might consider doing this:</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+<ins>    this.element.greetingButton = this;</ins>
+    this.element.onclick = this.greet;
+}
+
+GreetingButton.prototype.greet = function () {
+    alert(this<ins>.greetingButton</ins>.greeting);
+};
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <p>This code works as intended, but the solution is inelegant.
+    While it is unlikely that the name <code>greetingButton</code>
+    will ever conflict with anything, you’re still essentially
+    polluting someone else’s namespace.</p>
+
+    <p>Another problem with this approach is that it theoretically breaks
+    encapsulation, since you are in fact setting up a backdoor to your logic.
+    Anyone with access to the <acronym>HTML</acronym> document that your
+    element is attached to could aquire a reference to your backdoored
+    element, and, by extension, your private data.  This will probably not
+    present itself as a practical problem to anyone, but it necessarily
+    remains a fundamental inelegancy.</p>
+
+    <p>Binding a variable to the value of <code>this</code> and then
+    closing over it is a superior approach:</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+<ins>    var greetingButton = this;</ins>
+<del>    this.element.onclick = this.greet;</del>
+<ins>    this.element.onclick = function () {
+        greetingButton.greet();
+    };</ins>
+}
+
+GreetingButton.prototype.greet = function () {
+    alert(this.greeting);
+};
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <div class="details">
+      <p>Essentially, a <dfn>closure</dfn>, or <dfn>lexical closure</dfn>, is a
+      function <var>f</var> coupled with a snapshot of its lexical environment
+      (i.e., the non-local variable bindings used in its body).</p>
+
+      <p>Hence, <dfn>closing over</dfn> some variable <var>v</var>
+      means creating a closure that refers to <var>v</var>.</p>
+
+      <p>Strictly, the term “closure” can be used to describe any function that
+      refers to one or more variables in an outer lexical scope.  This is a
+      rather broad definition that includes, for example, all functions that
+      refer to global variables (such as <code>document</code>,
+      <code>alert</code>, <code>String</code>, and so on).</p>
+
+      <p>Some closures are more worthy of the classification.  Firstly, it is
+      common to exclude functions whose only outer scope is the global scope.
+      That is, global functions are usually not described as closures.
+      Secondly, the interesting kind of closures are those that really utilize
+      the power leveraged by lexical scoping.  I try to use the term only
+      when <var>f</var> has the following characteristics:</p>
+
+      <ul>
+        <li>The body of <var>f</var> appears within the body of another
+        function <var>g</var> (this excludes global functions).</li>
+        <li>Some variables that are bound by <var>g</var> are referred to
+        in the body of <var>f</var> (this excludes functions that only
+        refer to the global environment).</li>
+        <li>The function <var>f</var> can be called by code that does not
+        appear within the body of <var>g</var>, making <var>f</var> a kind
+        of interface between its environment and external code (this
+        excludes functions that are not utilizing the power of lexical
+        scoping).</li>
+      </ul>
+
+      <p>The canonical example of a closure is the counter:</p>
+
+      <pre>function makeCounter(start) {
+    var current = start;
+    function counter() { return current++; };
+    return counter;
+}</pre>
+
+      <p>Here, our <var>f</var> — the closure — is <code>counter</code>,
+      which appears within the body of <code>makeCounter</code> (our
+      <var>g</var>).  The variable <code>current</code> is bound by
+      <code>makeCounter</code> and referred to in the body of
+      <code>counter</code>.  Finally, <code>counter</code> can be called by
+      code that does not appear within the body of <code>makeCounter</code>
+      because it is returned to the outside code.  In case you were wondering,
+      <code>makeCounter</code> could equivalently be written like so:</p>
+
+      <pre>function makeCounter(current) {
+    return function () { return current++; };
+}</pre>
+
+      <p>It is important to understand that a new closure is created and
+      returned every time <code>makeCounter</code> is called.  The parallels to
+      object-oriented programming are obvious and indeed interesting.  If you
+      are confused about closures and lexical scoping, I recommend the classic
+      <em><a href="http://mitpress.mit.edu/sicp/">Structure and Interpretation
+      of Computer Programs</a></em> (they just call them <dfn>procedures</dfn>,
+      though—not closures).</p>
+    </div>
+
+    <div class="details">
+      <p>You might wonder why we can’t just close over <code>this</code>,
+      instead of declaring a proxy variable and closing over <em>that</em>.</p>
+
+      <pre><del>var greetingButton = this;
+</del>this.onclick = function () {
+<del>    greetingButton.greet();</del>
+<ins>    this.greet();</ins>
+};</pre>
+
+      <p>The reason why this approach won’t work is that <code>this</code> is
+      always bound anew every time a function is called, so the outer binding
+      would be shadowed by a new binding of <code>this</code>.</p>
+    </div>
+
+    <p>Refactoring this a bit, we get the following:</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+<del>    this.element.onclick = function () {
+        greetingButton.greet();
+    };</del>
+<ins>    this.element.onclick = createMethodReference(this, "greet");</ins>
+}
+
+GreetingButton.prototype.greet = function () {
+    alert(this.greeting);
+};
+
+<ins>function createMethodReference(object, methodName) {
+    return function () {
+        object[methodName]();
+    };
+};</ins>
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <p>And thus we arrive at the essential point of this article.  We have
+    just discovered a basic method for “welding” a function and an object,
+    forming what we have been calling a <dfn>method reference</dfn>.</p>
+
+    <p>I call this form of event listening “object-oriented,” because instead
+    of attaching callback functions, you attach callback <em>methods</em>.
+    When doing object-oriented programming, an equivalent or similar facility
+    is nearly essential.</p>
+
+    <p>I say “through partial application” because <dfn>partial
+    application</dfn>—i.e., informally, calling a function with only a
+    subset of its arguments and getting back the remainder—is actually
+    what <code>createMethodReference</code> does.</p>
+
+    <div class="details">
+      <p>The concept of partial application can be visualized by thinking of a
+      function as a box with a number of empty slots—one for each argument that
+      the function expects.  Partially applying the function to some arguments,
+      then, amounts to plugging just those arguments into the appropriate slots,
+      producing a new box with <em>fewer</em> empty slots.</p>
+
+      <p>Now note that a method can be thought of as a function taking an extra
+      first argument (i.e., the new value of <code>this</code>).  Thus, when we
+      call <code>createMethodReference(o, "m")</code>, we are just plugging
+      <code>o</code> into the first slot (or, perhaps more accurately, the
+      “zeroth” slot) of the function <code>o.m</code>—partial application.</p>
+    </div>
+
+    <h2>Letting external arguments pass through method references</h2>
+
+    <p>When you click a button on a web page, the browser calls the event
+    listener referred to by the element’s <code>onclick</code> property.
+    It sends one argument to the event listener: the <dfn>event object</dfn>,
+    which says things like the exact coordinates at which the click occured.</p>
+
+    <p>However, using the above definition of
+    <code>createMethodReference</code>, an event listener method has no way of
+    accessing the event object.  Therefore, we would like the method reference
+    to pass on whatever arguments it receives—the event object, in this case—to
+    the method it references.</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+    this.element.onclick = createMethodReference(this, "greet");
+}
+
+GreetingButton.prototype.greet = function (<ins>event</ins>) {
+    alert(this.greeting);
+};
+
+function createMethodReference(object, methodName) {
+    return function () {
+<del>        object[methodName]();</del>
+<ins>        object[methodName].apply(object, arguments);</ins>
+    };
+};
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <div class="details">
+      <p>The <code>apply</code> method on functions is analogous to the
+      <code>apply</code> functions found in Common Lisp and Scheme, except that
+      the <code>this</code> argument must be given separately.</p>
+
+      <p>In pseudocode, <code>f.apply(o, as)</code> means roughly this:</p>
+
+      <pre>o.___tmp___ = f;
+o.___tmp___(as[0], as[1], as[2], ...);</pre>
+
+      <p>It might help to note that <code>o.m.apply(o, [a, b, c])</code>
+      is exactly equal to <code>o.m(a, b, c)</code>.</p>
+    </div>
+
+    <div class="details">
+      <p>Note that <code>arguments</code> in the expression
+      <code>apply(object, arguments)</code> refers to the arguments of
+      the <em>inner</em>, <em>anonymous</em> function—<em>not</em> the
+      <code>createMethodReference</code> function itself.</p>
+    </div>
+
+    <p>But wait.  In making the <code>greet</code> method take an event object,
+    we have introduced a subtle inconsistency: our code is explicitly calling
+    the <code>greet</code> method without an event object.  We’ll just add some
+    indirection to clean this up:</p>
+
+    <pre>function GreetingButton(greeting) {
+    this.greeting = greeting;
+    this.element = document.createElement("button");
+    this.element.appendChild(document.createTextNode("Receive Greeting"));
+<del>    this.element.onclick = createMethodReference(this, "greet");</del>
+<ins>    this.element.onclick = createMethodReference(this, "buttonClicked");</ins>
+}
+
+<ins>GreetingButton.prototype.buttonClicked = function (event) {
+    this.greet();
+};</ins>
+
+GreetingButton.prototype.greet = function (<del>event</del>) {
+    alert(this.greeting);
+};
+
+function createMethodReference(object, methodName) {
+    return function () {
+        object[methodName].apply(object, arguments);
+    };
+};
+
+onload = function () {
+    gb = new GreetingButton("Hello!");
+    document.body.appendChild(gb.element);
+    gb.greet();
+};</pre>
+
+    <h2>Making method references not look like <code>eval</code></h2>
+
+    <p>You might want to be able to pass <em>any function</em> to
+    <code>createMethodReference</code> instead of just a method name.
+    That way, you can create method references to functions which
+    aren’t really “methods” of the object in question.</p>
+
+    <pre>function createMethodReference(object, method<del>Name</del>) {
+<ins>    if (!(method instanceof Function))
+        method = object[method];</ins>
+
+    return function () {
+        method.apply(object, arguments);
+    };
+};</pre>
+
+    <p>But perhaps more convincing is the fact that we no longer have to
+    deal with strings whose content are more or less code:</p>
+
+    <pre><del>this.element.onclick = createMethodReference(this, "buttonClicked");</del>
+<ins>this.element.onclick = createMethodReference(this, this.buttonClicked);</ins></pre>
+
+    <h2>Taking special measures for event listeners</h2>
+
+    <p>As of 2005, if you want to be compatible with Internet Explorer,
+    you usually have to put this code at the top of every event listener:</p>
+
+    <pre>event = event || window.event;</pre>
+
+    <p>To avoid always having to do that, you can pull this
+    logic into the function that creates the event listener
+    method references:</p>
+
+    <pre>function createEventListenerMethodReference(object, methodName) {
+    return function (event) {
+        object[methodName].call(object, event || window.event);
+    };
+}</pre>
+
+    <p>In this case we assume that the method always takes exactly one argument,
+    so we do not have to use <code>apply</code> to pass the arguments.</p>
+
+    <div class="details">
+      <p>The <code>call</code> method is just like <code>apply</code>,
+      except that instead of taking an array of arguments, it simply takes the
+      actual arguments one after another.  Thus, <code>f.call(o, a, b, c)</code>
+      is exactly the same as <code>f.apply(o, [a, b, c])</code>.</p>
+    </div>
+
+    <h2>Giving method references a respectable look</h2>
+
+    <p>The name <code>createMethodReference</code> is clearly long and
+    awkward, so let’s rename our function to <code>bind</code> and put
+    it on the prototype of <code>Function</code>.</p>
+
+    <pre>Function.prototype.bind = function (object) {
+    var method = this;
+    return function () {
+        method.apply(object, arguments);
+    };
+}</pre>
+
+    <div class="details">
+      <p>Note again how we had to create a variable binding in order to close
+      over the value of <code>this</code>.  As previously stated, every function
+      implictly binds <code>this</code>, so the above code works like this:</p>
+
+      <pre>Function.prototype.bind = function (object) {
+    <em>var this = &lt;object 1&gt;;</em>
+    var method = this;
+    return function () {
+        <em>var this = &lt;object 2&gt;;</em>
+        method.apply(object, arguments);
+    };
+}</pre>
+
+      <p>Clearly, it wouldn’t do the same thing if it looked like this:</p>
+
+      <pre>Function.prototype.bind = function (object) {
+    <em>var this = &lt;object 1&gt;;</em>
+<del>    var method = this;</del>
+    return function () {
+        <em>var this = &lt;object 2&gt;;</em>
+<del>        method.apply(object, arguments);</del>
+<ins>        this.apply(object, arguments);</ins>
+    };
+}</pre>
+    </div>
+
+    <p>Now we can use it like this:</p>
+
+    <pre><del>this.element.onclick = createMethodReference(this, this.buttonClicked);</del>
+<ins>this.element.onclick = this.buttonClicked.bind(this);</ins></pre>
+
+    <p>Of course, you can do the same with the Internet Explorer-compatible
+    event listener method reference creator:</p>
+
+    <pre>Function.prototype.bindAsEventListener = function (object) {
+    var method = this;
+    return function (event) {
+        method.call(object, event || window.event);
+    };
+}</pre>
+
+    <h2>More partial application (less-partial application)</h2>
+
+    <p>We can already do partial application on the <code>this</code> argument,
+    but we can just as easily allow for more general partial application:</p>
+
+    <pre><ins>// Most implementations don’t like expressions such as foo.concat(arguments)
+// or arguments.slice(1), due to a kind of reverse duck typing: an argument
+// object looks like a duck and walks like a duck, but it isn’t really a
+// duck and it won’t quack like one.
+function toArray(pseudoArray) {
+    var result = [];  // This is our real duck.
+
+    for (var i = 0; i &lt; pseudoArray.length; i++)
+        result.push(pseudoArray[i]);
+
+    return result;
+}</ins>
+
+Function.prototype.bind = function (object) {
+    var method = this;
+<ins>    var oldArguments = toArray(arguments).slice(1);</ins>
+    return function () {
+<del>        method.apply(object, arguments);</del>
+<ins>        var newArguments = toArray(arguments);
+        method.apply(object, oldArguments.concat(newArguments));</ins>
+    };
+}</pre>
+
+    <p>With this definition of <code>bind</code>, a call such as <code>f.bind(o,
+    1, 2)(3, 4)</code> will be rendered as <code>f.call(o, 1, 2, 3, 4)</code>.
+    The corresponding redefinition of <code>bindAsEventListener</code></p>
+
+    <pre>Function.prototype.bindAsEventListener = function (object) {
+    var method = this;
+<ins>    var oldArguments = toArray(arguments).slice(1);</ins>
+    return function (event) {
+<del>        method.call(object, event || window.event);</del>
+<ins>        method.apply(object, [event || window.event].concat(oldArguments));</ins>
+    };
+}</pre>
+
+    <p>will cause <code>f.bindAsEventListener(o, "moomin")("snufkin")</code>
+    to be rendered as <code>f.call(o, event, "moomin", "snufkin")</code>.
+    This is handy whenever you want to attach an event listener in a
+    certain “mode”.  For example, you might have a grid of cells, each
+    of which should react to click events.</p>
+
+    <pre>function GridWidget(width, height) {
+
+    <em>// Create elements and populate cell array here.</em>
+
+    for (var x = 0; x &lt; width; x++)
+        for (var y = 0; y &lt; height; y++)
+            cells[x][y].element.onclick =
+                this.cellClicked.bindAsEventListener(this);
+}
+
+GridWidget.prototype.cellClicked = function (event) {
+    alert("I have no idea which cell you just clicked.");
+};
+</pre>
+
+    <p>As the message says, it is not obvious how to find out which one of
+    the <code>width</code> × <code>height</code> different cells generated the
+    click event, because all cells trigger the same event listener.
+    Certainly it would be ridiculous to attempt to manually define a separate
+    event listener function for each cell, especially since the number of cells
+    may even be variable.</p>
+
+    <p>The solution, of course, is declaring the event listener to take two
+    additional arguments giving the cell coordinates, and using partial
+    application to plug these values in during object initialization.</p>
+
+    <pre>function GridWidget(width, height) {
+
+    <em>// Create elements and populate cell array here.</em>
+
+    for (var x = 0; x &lt; width; x++)
+        for (var y = 0; y &lt; height; y++)
+            cells[x][y].element.onclick =
+                this.cellClicked.bindAsEventListener(this<ins>, x, y</ins>);
+}
+
+GridWidget.prototype.cellClicked = function (event<ins>, x, y</ins>) {
+<del>    alert("I have no idea which cell you just clicked.");</del>
+<ins>    alert("You clicked the cell at (" + x + ", " + y + ")!");
+    this.cells[x][y].frobnicate();</ins>
+};
+</pre>
+
+    <p>It should not be hard to guess that it is useful to make the method
+    references pass on any values that the real methods return.</p>
+
+    <pre>Function.prototype.bind = function (object) {
+    var method = this;
+    var oldArguments = toArray(arguments).slice(1);
+    return function () {
+        var newArguments = toArray(arguments);
+        <ins>return </ins>method.apply(object, oldArguments.concat(newArguments));
+    };
+}
+
+Function.prototype.bindAsEventListener = function (object) {
+    var method = this;
+    var oldArguments = toArray(arguments).slice(1);
+    return function (event) {
+        <ins>return </ins>method.apply(object, [event || window.event].concat(oldArguments));
+    };
+}</pre>
+
+    <p>For example, it is often necessary to return <code>false</code> from an
+    event listener to signal that the default action should be suppressed.</p>
+
+    <p>Finally, here is a way to enable destruction of method references:</p>
+
+    <pre><ins>var destructMethodReference = new Object;</ins>
+Function.prototype.bind = function (object) {
+    var method = this;
+    var oldArguments = toArray(arguments).slice(1);
+    return function (argument) {
+<ins>        if (argument == destructMethodReference) {
+            method = null;
+            oldArguments = null;
+        } else if (method == null) {
+            throw "Attempt to invoke destructed method reference.";
+        } else {</ins>
+            var newArguments = toArray(arguments);
+            return method.apply(object, oldArguments.concat(newArguments));
+<ins>        }</ins>
+    };
+}</pre>
+
+    <p>Now, to destruct a method reference, just invoke it with the special
+    object <code>destructMethodReference</code> as argument.  Being able to
+    destruct method references is useful when working around the Internet
+    Explorer reference cycle memory leak.</p>
+
+    <div class="details">
+      <p>There is a bug in Internet Explorer that prevents its garbage
+      collector from reclaiming objects that are part of cyclic reference
+      chains which run through at least one DOM object (i.e., element).
+      The <code>GridWidget</code> code above creates creates one such
+      reference cycle for each grid cell.  Specifically, the cycle is
+      constructed as follows:</p>
+        <ul>
+          <li>each cell element has a reference to a method reference;</li>
+          <li>each method reference has a reference to the
+            <code>GridWidget</code> object;</li>
+          <li>the <code>GridWidget</code> object has one reference to each
+            cell element.</li>
+        </ul>
+      <p>Since cell elements are DOM objects, Internet Explorer fails to reclaim
+      this cycle of objects and a memory leak results.  The solution to this
+      problem is to break the cycles when you no longer need them.  You can do
+      this in the <code>onunload</code> event handler.</p>
+    </div>
+
+    <p>By the way, if you don’t like the global helper function
+    <code>toArray</code>, just make it a local helper function:</p>
+
+    <pre><ins>(function () {</ins>
+    function toArray(pseudoArray) {
+        var result = [];
+        for (var i = 0; i &lt; pseudoArray.length; i++)
+            result.push(pseudoArray[i]);
+        return result;
+    }
+
+    Function.prototype.bind = function (object) {
+        var method = this;
+        var oldArguments = toArray(arguments).slice(1);
+        return function () {
+            var newArguments = toArray(arguments);
+            return method.apply(object, oldArguments.concat(newArguments));
+        };
+    }
+
+    Function.prototype.bindAsEventListener = function (object) {
+        var method = this;
+        var oldArguments = toArray(arguments).slice(1);
+        return function (event) {
+            return method.apply(object, [event || window.event].concat(oldArguments));
+        };
+    }
+<ins>})();</ins></pre>
+    
+
+    <h2>Acknowledgements</h2>
+
+    <p>I want to thank the following people for their help in writing and
+    revising this article.</p>
+
+    <p>My dear friend Peter Wängelin provided the initial motivation for
+    the article by asking some good questions that I felt deserved some good,
+    written answers.</p>
+
+    <p>Sam Stephenson promoted the article by linking to it from
+    <a href="http://conio.net/">his website</a> and suggested to
+    people that they read it.  He also put the <code>bind</code> method
+    into his JavaScript library,
+    <a href="http://prototype.conio.net/">Prototype</a>,
+    which is now bundled with
+    <a href="http://www.rubyonrails.org/">Ruby on Rails</a>.
+    Very cool!</p>
+
+    <p>Mathieu van Loon corrected an error in the definitions of
+    <code>bind</code> and <code>bindAsEventListener</code>, and suggested that
+    method references should pass on the return values of the real methods.</p>
+
+    <p>Chih-Chao Lam pointed out the fact that argument objects cannot
+    portably be used as arrays.</p>
+
+    <p>Ken Tozier asked whether one could avoid defining the helper
+    function <code>toArray</code> globally.</p>
+
+    <p>Gary Hall, as well as a few other people, pointed out that Internet
+    Explorer has a problem with cyclic references through DOM objects.</p>
+
+    <p>Jordan Gray spotted an error in <code>bindAsEventListener</code>.</p>
+
+    <p>At least a few other people have linked to the article from various
+    places on the web, and I want to thank them too.</p>
+
+    <p>I’ve been revising this article occasionally for a couple of years now,
+    and I wouldn’t have found the motivation to do so if it weren’t for
+    thoughtful people like Anders Blomgren, Richard Davies, Chad Burggraf and
+    Nick Eby, who mailed me and thanked me for writing it.  I think every such
+    message has spurred a revision—sometimes major, sometimes minor.
+    The article would be nowhere near as polished as it is if I weren’t
+    reminded of it from time to time.</p>
+
+    <h2>Copying</h2>
+
+    <p>Copyright &copy; 2004, 2005, 2006, 2007, 2008  Daniel Brockman.</p>
+
+    <p><img src="gnu-head.png" style="float: left; margin: 0 1em;"/>
+    <strong>Permission is granted to copy, distribute and/or modify this
+    document</strong> under the terms of the <acronym>GNU</acronym> Free
+    Documentation License, Version 1.2 or any later version published by the
+    Free Software Foundation; with no Invariant Sections, no Front-Cover Texts,
+    and no Back-Cover Texts.  Copies of the <acronym>GNU</acronym> Free
+    Documentation License can be obtained at the
+    following <acronym>URL</acronym>:
+    <a href="http://www.gnu.org/licenses/"
+       style="font-family: monospace;">http://www.gnu.org/licenses/</a></p>
+
+    <p>In addition, I hereby place all the JavaScript source code in this
+    article into the public domain.  If that is not possible, anyone is
+    permitted to use it for any purpose.</p>
+  </body>
+</html>
+<!-- Local Variables: -->
+<!-- coding: utf-8 -->
+<!-- time-stamp-format: "%:b %:d, %:y" -->
+<!-- time-stamp-start: "<address class=\"revised\">Revised " -->
+<!-- time-stamp-end: "</address>" -->
+<!-- time-stamp-line-limit: 80 -->
+<!-- End: -->
